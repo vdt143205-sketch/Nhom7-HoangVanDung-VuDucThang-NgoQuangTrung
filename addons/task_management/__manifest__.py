@@ -15,7 +15,7 @@
     'category': 'Project Management',
     'version': '1.1',
 
-    'depends': ['base', 'mail', 'customer_management'], 
+    'depends': ['base', 'mail', 'customer_management', 'nhan_su'], 
     
     'data': [
         'security/ir.model.access.csv',

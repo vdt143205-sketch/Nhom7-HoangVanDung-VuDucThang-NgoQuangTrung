@@ -15,7 +15,7 @@ class TaskManagement(models.Model):
     partner_id = fields.Many2one('khach_hang.customer', string='Khách hàng', tracking=True)
     order_id = fields.Many2one('khach_hang.order', string='Đơn hàng liên quan', tracking=True, ondelete='cascade')
  
-    user_id = fields.Many2one('res.users', string='Người thực hiện', default=lambda self: self.env.user, tracking=True)
+    nhan_vien_id = fields.Many2one('nhan_vien', string='Người thực hiện', tracking=True)
     
     start_date = fields.Date(string='Ngày bắt đầu', default=fields.Date.context_today)
     deadline = fields.Date(string='Hạn chót', tracking=True)

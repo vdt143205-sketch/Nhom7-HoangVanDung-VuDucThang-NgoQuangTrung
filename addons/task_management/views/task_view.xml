@@ -7,9 +7,9 @@
             <search>
                 <field name="name"/>
                 <field name="partner_id"/>
-                <field name="user_id"/>
+                <field name="nhan_vien_id"/>
                 
-                <filter string="Việc của tôi" name="my_tasks" domain="[('user_id', '=', uid)]"/>
+                <!-- Filter theo nhân viên -->
                 <filter string="Chưa hoàn thành" name="not_done" domain="[('state', '!=', 'done')]"/>
                 <separator/>
                 <filter string="Ưu tiên cao" name="high_priority" domain="[('priority', 'in', ('2','3'))]"/>
@@ -17,7 +17,7 @@
                 <group expand="0" string="Nhóm theo">
                     <filter string="Trạng thái" name="group_by_state" context="{'group_by': 'state'}"/>
                     <filter string="Khách hàng" name="group_by_partner" context="{'group_by': 'partner_id'}"/>
-                    <filter string="Người thực hiện" name="group_by_user" context="{'group_by': 'user_id'}"/>
+                    <filter string="Người thực hiện" name="group_by_nhan_vien" context="{'group_by': 'nhan_vien_id'}"/>
                 </group>
             </search>
         </field>
@@ -30,7 +30,7 @@
             <kanban default_group_by="state" class="o_kanban_small_column" records_draggable="true" edit="false" delete="false" quick_create="false">
                 <field name="state"/>
                 <field name="priority"/>
-                <field name="user_id"/>
+                <field name="nhan_vien_id"/>
                 <field name="activity_ids"/>
                 <progressbar field="priority" colors='{"3": "danger", "2": "warning", "1": "success"}'/>
                 <templates>
@@ -55,7 +55,7 @@
                                     <field name="activity_ids" widget="kanban_activity"/>
                                 </div>
                                 <div class="oe_kanban_bottom_right">
-                                    <field name="user_id" widget="many2one_avatar_user"/>
+                                    <field name="nhan_vien_id"/>
                                 </div>
                             </div>
                         </div>
@@ -75,7 +75,7 @@
                   multi_edit="1">
                 <field name="name"/>
                 <field name="partner_id"/>
-                <field name="user_id" widget="many2one_avatar_user" optional="show"/>
+                <field name="nhan_vien_id" optional="show"/>
                 <field name="deadline" optional="show"/>
                 <field name="progress" widget="progressbar" optional="show"/>
                 <field name="priority" widget="priority" optional="show"/>
@@ -106,7 +106,7 @@
                     <group>
                         <group>
                             <field name="partner_id"/>
-                            <field name="user_id" widget="many2one_avatar_user"/>
+                            <field name="nhan_vien_id"/>
                             <field name="priority" widget="priority"/>
                         </group>
                         <group>
@@ -137,7 +137,7 @@
         <field name="arch" type="xml">
             <graph string="Thống kê công việc" type="bar" sample="1">
                 <field name="state" type="col"/>
-                <field name="user_id" type="row"/>
+                <field name="nhan_vien_id" type="row"/>
                 <field name="id" type="measure"/>
             </graph>
         </field>
@@ -150,7 +150,7 @@
         <field name="arch" type="xml">
             <pivot string="Phân tích công việc" sample="1">
                 <field name="state" type="col"/>
-                <field name="user_id" type="row"/>
+                <field name="nhan_vien_id" type="row"/>
                 <field name="partner_id" type="row"/>
                 <field name="priority" type="row"/>
                 <field name="progress" type="measure"/>
@@ -184,7 +184,7 @@
         <field name="name">Thống kê theo người thực hiện</field>
         <field name="res_model">task.management.task</field>
         <field name="view_mode">graph,pivot,tree,form</field>
-        <field name="context">{'graph_mode': 'pie', 'graph_groupbys': ['user_id']}</field>
+        <field name="context">{'graph_mode': 'pie', 'graph_groupbys': ['nhan_vien_id']}</field>
     </record>
 
     <!-- Action Dashboard - Thống kê theo độ ưu tiên -->
