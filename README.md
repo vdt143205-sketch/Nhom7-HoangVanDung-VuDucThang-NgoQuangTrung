@@ -143,8 +143,8 @@ Module quản lý công việc và tiến độ dự án, tích hợp với Cust
 ### 4.2. Clone project
 
 ```bash
-git clone https://github.com/FIT-DNU/Business-Internship.git
-cd Business-Internship
+git clone https://github.com/rynxu2/16-06-N01.git
+cd 16-06-N01
 ```
 
 ### 4.3. Cài đặt dependencies
@@ -234,7 +234,7 @@ Sau khi đăng nhập vào Odoo (http://localhost:8069):
 ## 📁 6. Cấu trúc thư mục
 
 ```
-Business-Internship/
+16-06-N01/
 ├── addons/
 │   ├── customer_management/      # Module quản lý khách hàng
 │   │   ├── models/               # Models (Customer, Product, Order...)
@@ -290,7 +290,6 @@ Business-Internship/
 
 ### 7.3. Quản lý công việc hiệu quả
 - Kanban board trực quan
-- Tự động phân công công việc
 - Theo dõi deadline
 - Báo cáo KPI
 
@@ -340,7 +339,7 @@ Dự án được phát triển bởi sinh viên Khoa Công Nghệ Thông Tin - 
 - **Vũ Minh Quốc** - Developer
 
 ### Giảng viên hướng dẫn
-- AIoTLab - Faculty of Information Technology
+- **Lê Tuấn Anh** - Khoa Công Nghệ Thông Tin
 
 ## 📝 12. License
 
