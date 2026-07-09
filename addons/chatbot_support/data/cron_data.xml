@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- [F9] Cron: phân tích câu trả lời bị đánh giá 👎 → tạo KB draft -->
+    <record id="ir_cron_analyze_low_rated" model="ir.cron">
+        <field name="name">[F9] Phân tích câu trả lời bị đánh giá thấp → KB draft</field>
+        <field name="model_id" ref="chatbot_support.model_chatbot_conversation"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_analyze_low_rated_responses()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="active">True</field>
+        <field name="priority">16</field>
+    </record>
+</odoo>

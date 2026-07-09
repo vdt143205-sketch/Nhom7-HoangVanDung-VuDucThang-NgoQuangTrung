@@ -94,18 +94,20 @@ class ChatbotConversation(models.Model):
         KB = self.env['chatbot.knowledge.base']
 
         for msg in bad_msgs:
-            # Lấy câu hỏi liền trước của user
+            # Lấy câu hỏi liền trước của user — dùng id thay vì create_date vì
+            # user message và bot message được tạo cùng giây trong 1 request
             user_msg = Message.search([
                 ('conversation_id', '=', msg.conversation_id.id),
                 ('message_type', '=', 'user'),
-                ('create_date', '<', msg.create_date),
-            ], order='create_date desc', limit=1)
+                ('id', '<', msg.id),
+            ], order='id desc', limit=1)
 
             question_text = user_msg.content if user_msg else '(không rõ)'
 
-            # Tạo draft KB entry
-            existing_draft = KB.search([
-                ('name', '=', f'[F9 Draft] {question_text[:60]}')
+            # Tạo draft KB entry — draft nằm ở trạng thái archived (active=False)
+            # nên phải tắt active_test, nếu không search sẽ bỏ qua draft cũ → tạo trùng
+            existing_draft = KB.with_context(active_test=False).search([
+                ('name', '=', f'[F9 Draft] {question_text[:80]}')
             ], limit=1)
 
             if not existing_draft:
@@ -118,7 +120,7 @@ class ChatbotConversation(models.Model):
                     ),
                     'keywords': question_text[:200],
                     'active': False,   # Draft — cần admin kích hoạt
-                    'priority': 'high',
+                    'priority': '2',   # Cao (selection '0'-'3')
                 })
                 _logger.info(f"[F9] Tạo KB draft từ câu trả lời xấu #{msg.id}")
 

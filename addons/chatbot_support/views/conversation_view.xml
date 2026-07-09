@@ -57,6 +57,7 @@
                                     <field name="message_type"/>
                                     <field name="content"/>
                                     <field name="response_time" optional="show"/>
+                                    <field name="rating" optional="show"/>
                                     <field name="is_helpful" widget="boolean_toggle" optional="show"/>
                                 </tree>
                             </field>

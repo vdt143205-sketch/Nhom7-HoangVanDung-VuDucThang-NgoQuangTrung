@@ -21,6 +21,7 @@
     'data': [
         'security/ir.model.access.csv',
         'data/demo_data.xml',
+        'data/cron_data.xml',  # [F9] cron phân tích câu trả lời bị đánh giá thấp
         'views/knowledge_base_view.xml',
         'views/conversation_view.xml',
         'views/chatbot_config_view.xml',
