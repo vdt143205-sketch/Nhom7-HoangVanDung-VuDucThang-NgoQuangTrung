@@ -7,3 +7,5 @@ access_chatbot_config_admin,chatbot.config.admin,model_chatbot_config,base.group
 access_chatbot_knowledge_base_public,chatbot.knowledge.base.public,model_chatbot_knowledge_base,base.group_public,1,0,0,0
 access_chatbot_conversation_public,chatbot.conversation.public,model_chatbot_conversation,base.group_public,1,0,1,0
 access_chatbot_message_public,chatbot.message.public,model_chatbot_message,base.group_public,1,0,1,0
+access_chatbot_ai_summary_user,chatbot.ai.summary.user,model_chatbot_ai_summary,base.group_user,1,0,0,0
+access_chatbot_ai_summary_admin,chatbot.ai.summary.admin,model_chatbot_ai_summary,base.group_system,1,1,1,1

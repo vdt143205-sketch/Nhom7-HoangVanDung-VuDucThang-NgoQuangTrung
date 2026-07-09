@@ -205,9 +205,11 @@ class ChatbotController(http.Controller):
 
         # Nếu khách hỏi về đơn hàng
         if any(kw in msg_lower for kw in ['đơn hàng', 'đơn', 'order', 'mua', 'đặt']):
-            orders = request.env['khach_hang.order'].sudo().search([], limit=10, order='create_date desc')
+            Order = request.env['khach_hang.order'].sudo()
+            orders = Order.search([], limit=10, order='create_date desc')
             if orders:
-                lines = ["=== DỮ LIỆU ĐƠN HÀNG THỰC TẾ ==="]
+                total = Order.search_count([])
+                lines = [f"=== DỮ LIỆU ĐƠN HÀNG THỰC TẾ (tổng cộng {total} đơn hàng, dưới đây là {len(orders)} đơn mới nhất) ==="]
                 for o in orders:
                     lines.append(
                         f"- {o.name}: KH={o.customer_id.name or 'N/A'}, "
@@ -217,9 +219,11 @@ class ChatbotController(http.Controller):
 
         # Nếu khách hỏi về khách hàng
         if any(kw in msg_lower for kw in ['khách hàng', 'khách', 'customer']):
-            customers = request.env['khach_hang.customer'].sudo().search([], limit=10)
+            Customer = request.env['khach_hang.customer'].sudo()
+            customers = Customer.search([], limit=10)
             if customers:
-                lines = ["=== DỮ LIỆU KHÁCH HÀNG THỰC TẾ ==="]
+                total = Customer.search_count([])
+                lines = [f"=== DỮ LIỆU KHÁCH HÀNG THỰC TẾ (tổng cộng {total} khách hàng, dưới đây là {len(customers)} bản ghi) ==="]
                 for c in customers:
                     lines.append(
                         f"- {c.name}: Email={c.email or 'N/A'}, SĐT={c.phone or 'N/A'}, "
@@ -229,9 +233,11 @@ class ChatbotController(http.Controller):
 
         # Nếu khách hỏi về công việc / task
         if any(kw in msg_lower for kw in ['công việc', 'task', 'tiến độ', 'trạng thái']):
-            tasks = request.env['task.management.task'].sudo().search([], limit=10, order='create_date desc')
+            Task = request.env['task.management.task'].sudo()
+            tasks = Task.search([], limit=10, order='create_date desc')
             if tasks:
-                lines = ["=== DỮ LIỆU CÔNG VIỆC THỰC TẾ ==="]
+                total = Task.search_count([])
+                lines = [f"=== DỮ LIỆU CÔNG VIỆC THỰC TẾ (tổng cộng {total} công việc, dưới đây là {len(tasks)} công việc mới nhất) ==="]
                 for t in tasks:
                     lines.append(
                         f"- {t.name}: NV={t.nhan_vien_id.ho_va_ten or 'Chưa gán'}, "
@@ -241,9 +247,11 @@ class ChatbotController(http.Controller):
 
         # Nếu khách hỏi về nhân viên
         if any(kw in msg_lower for kw in ['nhân viên', 'nhan vien', 'staff', 'người phụ trách']):
-            employees = request.env['nhan_vien'].sudo().search([], limit=10)
+            Employee = request.env['nhan_vien'].sudo()
+            employees = Employee.search([], limit=10)
             if employees:
-                lines = ["=== DỮ LIỆU NHÂN VIÊN THỰC TẾ ==="]
+                total = Employee.search_count([])
+                lines = [f"=== DỮ LIỆU NHÂN VIÊN THỰC TẾ (tổng cộng {total} nhân viên, dưới đây là {len(employees)} bản ghi) ==="]
                 for nv in employees:
                     lines.append(
                         f"- {nv.ho_va_ten}: MĐD={nv.ma_dinh_danh}, "
@@ -253,9 +261,11 @@ class ChatbotController(http.Controller):
 
         # Nếu khách hỏi về sản phẩm
         if any(kw in msg_lower for kw in ['sản phẩm', 'product', 'hàng hóa', 'giá']):
-            products = request.env['khach_hang.product'].sudo().search([], limit=10)
+            Product = request.env['khach_hang.product'].sudo()
+            products = Product.search([], limit=10)
             if products:
-                lines = ["=== DỮ LIỆU SẢN PHẨM THỰC TẾ ==="]
+                total = Product.search_count([])
+                lines = [f"=== DỮ LIỆU SẢN PHẨM THỰC TẾ (tổng cộng {total} sản phẩm, dưới đây là {len(products)} bản ghi) ==="]
                 for p in products:
                     price = getattr(p, 'price', 0) or getattr(p, 'list_price', 0) or 0
                     lines.append(f"- {p.name}: Giá={price:,.0f} VNĐ")
@@ -508,3 +518,274 @@ Câu hỏi của khách hàng: {user_message}
                 return text
 
         raise Exception(f"Invalid response from Gemini API: {json.dumps(result)[:200]}")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # F7: Conversational Commerce — Intent Detection & Action Handlers
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def _detect_intent(self, message):
+        """[F7] Nhận diện ý định từ tin nhắn người dùng.
+
+        Trả về string intent:
+          'check_order'      — hỏi về trạng thái đơn hàng cụ thể
+          'search_product'   — tìm kiếm sản phẩm theo yêu cầu
+          'request_support'  — yêu cầu đổi trả / hỗ trợ
+          'churn_risk_check' — nhân viên hỏi về KH rủi ro
+          'general_question' — câu hỏi thông thường (không phân loại)
+        """
+        msg = message.lower()
+
+        # Check order intent
+        check_order_kw = ['đơn hàng của tôi', 'kiểm tra đơn', 'xem đơn',
+                          'trạng thái đơn', 'đơn #', 'ord', 'mã đơn',
+                          'đơn hàng số', 'giao hàng chưa', 'ship chưa']
+        if any(kw in msg for kw in check_order_kw):
+            return 'check_order'
+
+        # Search product intent
+        search_product_kw = ['tìm sản phẩm', 'xem sản phẩm', 'có sản phẩm',
+                             'dưới', 'triệu', 'giá', 'rẻ', 'đắt', 'mua gì',
+                             'tư vấn sản phẩm', 'sản phẩm nào', 'giá bao nhiêu']
+        if any(kw in msg for kw in search_product_kw):
+            return 'search_product'
+
+        # Support request intent
+        support_kw = ['đổi trả', 'hoàn tiền', 'khiếu nại', 'hỗ trợ',
+                      'bị lỗi', 'hàng lỗi', 'không nhận được', 'tư vấn',
+                      'cần giúp', 'liên hệ nhân viên']
+        if any(kw in msg for kw in support_kw):
+            return 'request_support'
+
+        # Churn risk check (internal staff)
+        churn_kw = ['khách hàng rủi ro', 'churn', 'rời bỏ', 'kh nguy cơ',
+                    'kh cần chăm sóc', 'danh sách rủi ro']
+        if any(kw in msg for kw in churn_kw):
+            return 'churn_risk_check'
+
+        return 'general_question'
+
+    def _handle_commerce_intent(self, intent, message):
+        """[F7] Xử lý intent và trả về context string có cấu trúc."""
+        if intent == 'check_order':
+            return self._handle_check_order(message)
+        elif intent == 'search_product':
+            return self._handle_search_product(message)
+        elif intent == 'request_support':
+            return self._handle_request_support(message)
+        elif intent == 'churn_risk_check':
+            return self._handle_churn_risk_check()
+        return ""
+
+    def _handle_check_order(self, message):
+        """[F7] Tìm đơn hàng theo mã hoặc tên KH từ tin nhắn."""
+        import re
+        Order = request.env['khach_hang.order'].sudo()
+
+        # Thử trích mã đơn (ORD... hoặc số)
+        code_match = re.search(r'(ORD[-/]?\d+|\b\d{4,}\b)', message.upper())
+        orders = None
+
+        if code_match:
+            code = code_match.group(1)
+            orders = Order.search([('name', 'ilike', code)], limit=3)
+
+        if not orders:
+            orders = Order.search([], order='create_date desc', limit=5)
+
+        if not orders:
+            return "=== KIỂM TRA ĐƠN HÀNG ===\nKhông tìm thấy đơn hàng nào."
+
+        state_label = {
+            'draft': 'Nháp', 'confirmed': 'Đã xác nhận',
+            'shipping': 'Đang giao', 'done': 'Hoàn thành', 'cancel': 'Đã hủy'
+        }
+        lines = ["=== THÔNG TIN ĐƠN HÀNG ==="]
+        for o in orders:
+            lines.append(
+                f"• Mã: {o.name} | KH: {o.customer_id.name or 'N/A'} | "
+                f"Trạng thái: {state_label.get(o.state, o.state)} | "
+                f"Tổng: {(o.total_amount or 0):,.0f} VNĐ | "
+                f"Ngày tạo: {str(o.create_date.date()) if o.create_date else 'N/A'}"
+            )
+        return "\n".join(lines)
+
+    def _handle_search_product(self, message):
+        """[F7] Tìm kiếm sản phẩm theo từ khóa hoặc ngưỡng giá."""
+        import re
+        Product = request.env['khach_hang.product'].sudo()
+
+        # Tìm ngưỡng giá nếu có
+        price_match = re.search(r'dưới\s*([\d.,]+)\s*(triệu|tr|nghìn|k)?', message.lower())
+        max_price = None
+        if price_match:
+            val = float(price_match.group(1).replace(',', '.').replace('.', ''))
+            unit = price_match.group(2) or ''
+            if 'triệu' in unit or 'tr' in unit:
+                max_price = val * 1_000_000
+            elif 'nghìn' in unit or 'k' in unit:
+                max_price = val * 1_000
+            else:
+                max_price = val
+
+        domain = []
+        if max_price:
+            domain.append(('price', '<=', max_price))
+
+        # Tìm từ khóa sản phẩm
+        keywords = [w for w in message.lower().split()
+                    if len(w) > 3 and w not in
+                    ('tìm', 'sản', 'phẩm', 'nào', 'giá', 'bao', 'nhiêu',
+                     'dưới', 'triệu', 'rẻ', 'đắt', 'mua', 'gì', 'cho')]
+        if keywords:
+            domain.append('|')
+            for kw in keywords[:2]:
+                domain.append(('name', 'ilike', kw))
+
+        products = Product.search(domain if domain else [], limit=5,
+                                  order='price asc')
+
+        if not products:
+            return "=== TÌM KIẾM SẢN PHẨM ===\nKhông tìm thấy sản phẩm phù hợp."
+
+        lines = ["=== SẢN PHẨM GỢI Ý ==="]
+        for p in products:
+            price = getattr(p, 'price', 0) or 0
+            lines.append(f"• {p.name}: {price:,.0f} VNĐ")
+        if max_price:
+            lines.append(f"(Lọc: giá ≤ {max_price:,.0f} VNĐ)")
+        return "\n".join(lines)
+
+    def _handle_request_support(self, message):
+        """[F7] Hướng dẫn quy trình hỗ trợ / đổi trả."""
+        return (
+            "=== HỖ TRỢ KHÁCH HÀNG ===\n"
+            "Để được hỗ trợ nhanh nhất, vui lòng:\n"
+            "1. Cung cấp mã đơn hàng (ví dụ: ORD001)\n"
+            "2. Mô tả vấn đề cụ thể\n"
+            "3. Chúng tôi sẽ phân công nhân viên xử lý trong vòng 24h\n"
+            "Hotline: 1800-xxx-xxx | Email: support@company.com"
+        )
+
+    def _handle_churn_risk_check(self):
+        """[F7] Trả về danh sách KH có rủi ro cao cho nhân viên nội bộ."""
+        Customer = request.env['khach_hang.customer'].sudo()
+        high_risk = Customer.search([
+            ('churn_risk_label', '=', 'high')
+        ], limit=5, order='churn_risk_score desc')
+
+        if not high_risk:
+            return "=== CHURN RISK ===\nHiện không có khách hàng nào ở mức rủi ro cao. 🟢"
+
+        lines = ["=== KHÁCH HÀNG RỦI RO CAO (cần chăm sóc ngay) ==="]
+        for c in high_risk:
+            lines.append(
+                f"• {c.name}: Score={c.churn_risk_score:.1f}% | "
+                f"Lý do: {c.churn_reason or 'N/A'} | "
+                f"NV phụ trách: {c.nhan_vien_phu_trach_id.ho_va_ten if c.nhan_vien_phu_trach_id else 'Chưa gán'}"
+            )
+        return "\n".join(lines)
+
+    # ── Override chat endpoint để tích hợp F7 intent ─────────────────────────
+    @http.route('/chatbot/api/chat/v2', type='json', auth='public',
+                methods=['POST'], csrf=False, cors='*')
+    def chat_v2(self, message, session_id=None, partner_id=None, **kwargs):
+        """[F7] Enhanced chat endpoint với intent detection.
+
+        Gọi _detect_intent → nếu là commerce intent, thêm action context
+        vào response metadata để frontend có thể render UI đặc biệt.
+        """
+        try:
+            conversation = self._get_or_create_conversation(
+                session_id, partner_id, kwargs)
+
+            # [F7] Nhận diện intent
+            intent = self._detect_intent(message)
+            commerce_context = self._handle_commerce_intent(intent, message)
+
+            # Lưu tin nhắn người dùng
+            request.env['chatbot.message'].sudo().create({
+                'conversation_id': conversation.id,
+                'message_type': 'user',
+                'content': message,
+            })
+
+            # Lấy response RAG bình thường, bổ sung commerce context
+            bot_response, metadata = self._get_bot_response_v2(
+                message, conversation, commerce_context)
+
+            bot_message = request.env['chatbot.message'].sudo().create({
+                'conversation_id': conversation.id,
+                'message_type': 'bot',
+                'content': bot_response,
+                'retrieved_docs': json.dumps(metadata.get('retrieved_docs', [])),
+                'confidence_score': metadata.get('confidence_score', 0.0),
+                'model_used': metadata.get('model_used', 'gemini-2.0-flash'),
+                'response_time': metadata.get('response_time', 0.0),
+            })
+
+            return {
+                'success': True,
+                'response': bot_response,
+                'intent': intent,
+                'conversation_id': conversation.id,
+                'message_id': bot_message.id,
+                'metadata': metadata,
+            }
+
+        except Exception as e:
+            _logger.error(f"[F7] Chat v2 error: {e}", exc_info=True)
+            return {
+                'success': False,
+                'response': 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại.',
+                'error': str(e),
+            }
+
+    def _get_bot_response_v2(self, user_message, conversation, commerce_context=""):
+        """Giống _get_bot_response nhưng ưu tiên inject commerce_context."""
+        import time
+        start_time = time.time()
+        try:
+            config = request.env['chatbot.config'].sudo().get_active_config()
+            retrieved_docs, confidence_score = self._retrieve_documents(
+                user_message, config)
+            kb_context = self._build_context(retrieved_docs)
+            live_context = self._get_live_data(user_message, conversation)
+
+            # [F7] Ưu tiên commerce context lên đầu
+            context_parts = []
+            if commerce_context:
+                context_parts.append(commerce_context)
+            context_parts.append(kb_context)
+            if live_context:
+                context_parts.append(live_context)
+            context = "\n\n".join(context_parts)
+
+            response = self._generate_response(
+                user_message, context, config, conversation)
+            response_time = time.time() - start_time
+
+            for doc in retrieved_docs:
+                doc.increment_usage()
+
+            return response, {
+                'retrieved_docs': [doc.id for doc in retrieved_docs],
+                'confidence_score': confidence_score,
+                'model_used': config.gemini_model,
+                'response_time': response_time,
+            }
+        except Exception as e:
+            _logger.error(f"[F7] RAG v2 error: {e}", exc_info=True)
+            config = request.env['chatbot.config'].sudo().get_active_config()
+            return config.fallback_message, {'error': str(e)}
+
+    # ── F10: Dashboard API endpoint ───────────────────────────────────────────
+    @http.route('/chatbot/api/dashboard', type='json', auth='user',
+                methods=['GET'], csrf=False)
+    def get_dashboard_data(self, **kwargs):
+        """[F10] API trả về KPI + AI summary mới nhất cho dashboard."""
+        try:
+            summary = request.env['chatbot.ai.summary'].sudo().get_latest_summary()
+            return {'success': True, 'data': summary}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- [F10] AI Dashboard — List view của AI Summary -->
+    <record id="view_ai_summary_list" model="ir.ui.view">
+        <field name="name">chatbot.ai.summary.list</field>
+        <field name="model">chatbot.ai.summary</field>
+        <field name="arch" type="xml">
+            <tree string="AI Daily Summary" decoration-info="1">
+                <field name="summary_date"/>
+                <field name="total_orders_today" string="Đơn hôm nay"/>
+                <field name="total_revenue_today" string="Doanh thu" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                <field name="overdue_tasks" string="Task quá hạn"
+                       decoration-danger="overdue_tasks &gt; 0"/>
+                <field name="open_tasks" string="Task đang mở"/>
+                <field name="high_churn_customers" string="KH rủi ro cao"
+                       decoration-warning="high_churn_customers &gt; 0"/>
+                <field name="negative_feedbacks" string="PH tiêu cực"/>
+                <field name="generation_time" string="Thời gian (s)"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- [F10] AI Dashboard — Form view chi tiết -->
+    <record id="view_ai_summary_form" model="ir.ui.view">
+        <field name="name">chatbot.ai.summary.form</field>
+        <field name="model">chatbot.ai.summary</field>
+        <field name="arch" type="xml">
+            <form string="AI Business Summary">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>🤖 Tóm tắt AI — <field name="summary_date"/></h1>
+                    </div>
+                    <!-- KPI row -->
+                    <group col="6">
+                        <group string="📦 Đơn hàng hôm nay" col="1">
+                            <field name="total_orders_today" nolabel="1"
+                                   style="font-size:2rem;font-weight:bold;color:#4CAF50"/>
+                        </group>
+                        <group string="⚠️ Task quá hạn" col="1">
+                            <field name="overdue_tasks" nolabel="1"
+                                   style="font-size:2rem;font-weight:bold;color:#F44336"/>
+                        </group>
+                        <group string="📋 Task đang mở" col="1">
+                            <field name="open_tasks" nolabel="1"
+                                   style="font-size:2rem;font-weight:bold;color:#2196F3"/>
+                        </group>
+                        <group string="🔴 KH rủi ro cao" col="1">
+                            <field name="high_churn_customers" nolabel="1"
+                                   style="font-size:2rem;font-weight:bold;color:#FF9800"/>
+                        </group>
+                        <group string="😠 PH tiêu cực" col="1">
+                            <field name="negative_feedbacks" nolabel="1"
+                                   style="font-size:2rem;font-weight:bold;color:#9C27B0"/>
+                        </group>
+                        <group string="⏱️ Thời gian gen" col="1">
+                            <field name="generation_time" nolabel="1"
+                                   style="font-size:1.5rem;color:#607D8B"/>
+                        </group>
+                    </group>
+                    <separator string="💬 Phân tích AI"/>
+                    <field name="summary_text" widget="html" nolabel="1"
+                           style="background:#f8f9fa;padding:16px;border-radius:8px;
+                                  font-size:1.05rem;line-height:1.7;white-space:pre-wrap"/>
+                    <group string="Metadata" col="2">
+                        <field name="model_used" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- [F10] Action -->
+    <record id="action_ai_summary" model="ir.actions.act_window">
+        <field name="name">🤖 AI Dashboard</field>
+        <field name="res_model">chatbot.ai.summary</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_today': 1}</field>
+    </record>
+
+    <!-- [F10] Cron: Sinh AI Summary hàng ngày -->
+    <record id="ir_cron_ai_daily_summary" model="ir.cron">
+        <field name="name">[F10] Sinh AI Business Summary hàng ngày</field>
+        <field name="model_id" ref="chatbot_support.model_chatbot_ai_summary"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_generate_daily_summary()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="active">True</field>
+        <field name="priority">15</field>
+    </record>
+</odoo>

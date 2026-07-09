@@ -24,6 +24,7 @@
         'views/knowledge_base_view.xml',
         'views/conversation_view.xml',
         'views/chatbot_config_view.xml',
+        'views/ai_dashboard_view.xml',  # [F10] AI Dashboard + cron
         'views/menu.xml',
     ],
     
