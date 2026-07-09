@@ -6,7 +6,7 @@
             <field name="name">Default Chatbot Configuration</field>
             <field name="gemini_api_key">AIzaSyC_tibnWK7POqYOzJbjyZof_iEvcTA_JvY</field>
             <field name="gemini_model">gemini-2.5-flash</field>
-            <field name="embedding_model">models/text-embedding-004</field>
+            <field name="embedding_model">models/gemini-embedding-001</field>
             <field name="top_k_results">3</field>
             <field name="similarity_threshold">0.5</field>
             <field name="temperature">0.7</field>

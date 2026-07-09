@@ -23,7 +23,7 @@ class ChatbotConfig(models.Model):
         ('gemini-2.5-pro', 'Gemini 2.5 Pro (Chất lượng cao)'),
     ], string='Model LLM', default='gemini-2.5-flash', required=True)
     
-    embedding_model = fields.Char(string='Embedding Model', default='models/text-embedding-004', required=True)
+    embedding_model = fields.Char(string='Embedding Model', default='models/gemini-embedding-001', required=True)
     
     # RAG Settings
     top_k_results = fields.Integer(string='Top K Documents', default=3, 
@@ -101,7 +101,7 @@ Quy tắc:
         if not text or not text.strip():
             return None
 
-        model = self.embedding_model or 'models/text-embedding-004'
+        model = self.embedding_model or 'models/gemini-embedding-001'
         url = f"https://generativelanguage.googleapis.com/v1beta/{model}:embedContent?key={self.gemini_api_key}"
         payload = {
             "model": model,
