@@ -24,6 +24,7 @@
         'views/res_config_settings_view.xml',
         'views/menu.xml',
         'data/demo_data.xml',
+        'data/cron_data.xml',       # [F3] Auto Escalation cron
     ],
     'application': True,
     'installable': True,

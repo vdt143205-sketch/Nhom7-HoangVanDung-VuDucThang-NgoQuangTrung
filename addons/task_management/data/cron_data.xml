@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- [F3] Cron: Kiểm tra task quá hạn và leo thang tự động mỗi ngày 8:00 AM -->
+    <record id="ir_cron_check_overdue_tasks" model="ir.cron">
+        <field name="name">[F3] Kiểm tra Task quá hạn &amp; Tự động Leo thang</field>
+        <field name="model_id" ref="task_management.model_task_management_task"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_check_overdue_tasks()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="active">True</field>
+        <field name="priority">5</field>
+    </record>
+</odoo>

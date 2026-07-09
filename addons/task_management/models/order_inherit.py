@@ -2,6 +2,8 @@
 from odoo import models, fields, api
 import logging
 import requests
+import json
+from datetime import date
 
 _logger = logging.getLogger(__name__)
 
@@ -97,17 +99,106 @@ class OrderTaskIntegration(models.Model):
             if task_vals:
                 self.task_ids.write(task_vals)
 
+    # ── F1: AI Smart Priority ─────────────────────────────────────────────────
+    def _ai_suggest_priority(self, order, nhan_vien):
+        """[F1] Dùng Gemini để đề xuất mức ưu tiên task dựa trên ngữ cảnh đơn.
+
+        Priority:
+          '0' = Thấp  |  '1' = Trung bình  |  '2' = Cao  |  '3' = Rất quan trọng
+
+        Nếu Gemini không khả dụng → fallback rule-based (giá trị đơn + deadline).
+        """
+        try:
+            config = self.env['chatbot.config'].search([('active', '=', True)], limit=1)
+            if not config or not config.gemini_api_key:
+                raise ValueError("Không có chatbot config")
+
+            # Thu thập ngữ cảnh
+            total_amount = order.total_amount or 0
+            days_to_deadline = None
+            if order.delivery_date:
+                days_to_deadline = (order.delivery_date - date.today()).days
+
+            order_count = 0
+            if order.customer_id:
+                order_count = self.env['khach_hang.order'].search_count([
+                    ('customer_id', '=', order.customer_id.id),
+                    ('state', '=', 'done'),
+                ])
+
+            nv_workload = 0
+            if nhan_vien:
+                nv_workload = self.env['task.management.task'].search_count([
+                    ('nhan_vien_id', '=', nhan_vien.id),
+                    ('state', 'in', ['todo', 'in_progress']),
+                ])
+
+            prompt = f"""Bạn là hệ thống ERP. Hãy phân tích và trả về mức ưu tiên cho task xử lý đơn hàng.
+
+Thông tin đơn hàng:
+- Giá trị đơn: {total_amount:,.0f} VNĐ
+- Số ngày còn đến hạn giao: {days_to_deadline if days_to_deadline is not None else 'Chưa đặt'}
+- Số đơn đã hoàn thành của khách hàng này: {order_count}
+- Workload hiện tại của nhân viên được gán: {nv_workload} task đang mở
+
+Quy tắc ưu tiên:
+- '3' (Rất quan trọng): Đơn > 50 triệu VNĐ HOẶC hạn dưới 2 ngày
+- '2' (Cao): Đơn 10-50 triệu VNĐ HOẶC hạn 2-5 ngày
+- '1' (Trung bình): Đơn 2-10 triệu VNĐ HOẶC hạn 5-14 ngày
+- '0' (Thấp): Đơn dưới 2 triệu VNĐ HOẶC hạn trên 14 ngày
+
+Chỉ trả về MỘT ký tự số duy nhất: 0, 1, 2, hoặc 3. Không giải thích."""
+
+            url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+                   f"gemini-2.0-flash:generateContent?key={config.gemini_api_key}")
+            payload = {"contents": [{"parts": [{"text": prompt}]}],
+                       "generationConfig": {"maxOutputTokens": 5, "temperature": 0.1}}
+
+            resp = requests.post(url, json=payload, timeout=8)
+            resp.raise_for_status()
+            ai_text = (resp.json()
+                       .get('candidates', [{}])[0]
+                       .get('content', {})
+                       .get('parts', [{}])[0]
+                       .get('text', '').strip())
+
+            if ai_text in ('0', '1', '2', '3'):
+                _logger.info(f"[F1-AI] Priority đề xuất bởi AI: {ai_text} cho đơn {order.name}")
+                return ai_text
+            _logger.warning(f"[F1-AI] Gemini trả về không hợp lệ: '{ai_text}', dùng fallback")
+
+        except Exception as e:
+            _logger.warning(f"[F1-AI] Gemini không khả dụng ({e}), dùng rule-based fallback")
+
+        # ── Fallback: rule-based ──────────────────────────────────────────────
+        total = order.total_amount or 0
+        days = None
+        if order.delivery_date:
+            days = (order.delivery_date - date.today()).days
+
+        if total > 50_000_000 or (days is not None and days < 2):
+            return '3'
+        if total > 10_000_000 or (days is not None and days < 5):
+            return '2'
+        if total > 2_000_000 or (days is not None and days < 14):
+            return '1'
+        return '0'
+
+    # ── Task creation ─────────────────────────────────────────────────────────
     @api.model
     def create(self, vals):
         """Tự động tạo Task khi tạo đơn hàng mới"""
         _logger.info("========== ORDER CREATE START ==========")
         _logger.info(f"Creating order with vals: {vals}")
-        
+
         order = super(OrderTaskIntegration, self).create(vals)
         _logger.info(f"Order created: ID={order.id}, Name={order.name}")
-        
+
         # Tìm nhân viên đang làm việc và ít task nhất để auto-gán
         nhan_vien = self._find_available_nhan_vien()
+
+        # [F1] AI đề xuất priority
+        smart_priority = order._ai_suggest_priority(order, nhan_vien)
 
         # Tạo task tự động cho đơn hàng
         task_vals = {
@@ -130,19 +221,22 @@ class OrderTaskIntegration(models.Model):
             'order_id': order.id,
             'nhan_vien_id': nhan_vien.id if nhan_vien else False,
             'deadline': order.delivery_date,
-            'priority': '2',
+            'priority': smart_priority,  # [F1] AI-generated priority
             'state': 'todo',
             'progress': 0,
         }
         _logger.info(f"Creating task with vals: {task_vals}")
-        
+
         task = self.env['task.management.task'].create(task_vals)
-        _logger.info(f"Task created: ID={task.id}, Name={task.name}, Assigned to: {nhan_vien.ho_va_ten if nhan_vien else 'Chưa gán'}")
+        _logger.info(
+            f"Task created: ID={task.id}, Name={task.name}, "
+            f"Priority={smart_priority}, "
+            f"Assigned to: {nhan_vien.ho_va_ten if nhan_vien else 'Chưa gán'}"
+        )
 
         order._notify_telegram_new_task(task, nhan_vien, order)
 
         _logger.info("========== ORDER CREATE END ==========")
-
         return order
 
     def action_confirm(self):
