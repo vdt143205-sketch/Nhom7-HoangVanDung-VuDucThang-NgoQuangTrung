@@ -471,7 +471,7 @@ def _retrieve_documents_semantic(self, query, config):
 ```
 
 **Hàm `generate_embedding()` trong `chatbot_config.py` (mới thêm):**  
-Gọi Gemini Embedding API (`models/text-embedding-004`) để sinh vector cho một đoạn
+Gọi Gemini Embedding API (`models/gemini-embedding-001`) để sinh vector cho một đoạn
 text bất kỳ — dùng chung cho cả việc sinh embedding của tài liệu KB (khi tạo/sửa)
 và embedding của câu hỏi khách hàng (lúc chat).
 
@@ -895,7 +895,7 @@ trả lời (không phản ánh đúng mức độ tin cậy thật).
 
 **Thêm mới:**
 - `chatbot_config.generate_embedding()` — gọi Gemini Embedding API
-  (`models/text-embedding-004`) sinh vector cho bất kỳ đoạn text nào.
+  (`models/gemini-embedding-001`) sinh vector cho bất kỳ đoạn text nào.
 - `knowledge_base.py` — tự động sinh và lưu `embedding_vector` (JSON) mỗi khi
   tạo/sửa nội dung tài liệu (`_generate_embedding_silent()`), không chặn thao
   tác nếu API lỗi.
