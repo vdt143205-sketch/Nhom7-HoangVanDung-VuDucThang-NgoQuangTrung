@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 from datetime import date
@@ -28,7 +28,7 @@ class TaskManagement(models.Model):
         ('1', 'Trung bình'),
         ('2', 'Cao'),
         ('3', 'Rất quan trọng')
-    ], string='Độ ưu tiên', default='1', widget='priority')
+    ], string='Độ ưu tiên', default='1')
 
     state = fields.Selection([
         ('todo', 'Cần làm'),
